@@ -4,12 +4,10 @@ import uuid
 
 app = Flask(__name__)
 
-# In-memory storage (for development - in production you'd use a database)
 students = {}
 classes = {}
 student_class_registrations = {}
 
-# Helper function to validate student data
 def validate_student_data(data, required_fields=None):
     if required_fields is None:
         required_fields = ['FirstName', 'LastName', 'Age', 'City']
@@ -18,7 +16,6 @@ def validate_student_data(data, required_fields=None):
         if field not in data or not data[field]:
             return False, f"Missing or empty field: {field}"
     
-    # Validate age is a number
     try:
         age = int(data['Age'])
         if age <= 0 or age > 150:
@@ -28,7 +25,6 @@ def validate_student_data(data, required_fields=None):
     
     return True, "Valid"
 
-# Helper function to validate class data
 def validate_class_data(data, required_fields=None):
     if required_fields is None:
         required_fields = ['ClassName', 'Description', 'StartDate', 'EndDate', 'NumberOfHours']
@@ -37,7 +33,6 @@ def validate_class_data(data, required_fields=None):
         if field not in data or not data[field]:
             return False, f"Missing or empty field: {field}"
     
-    # Validate dates
     try:
         start_date = datetime.strptime(data['StartDate'], '%Y-%m-%d')
         end_date = datetime.strptime(data['EndDate'], '%Y-%m-%d')
@@ -46,7 +41,6 @@ def validate_class_data(data, required_fields=None):
     except ValueError:
         return False, "Dates must be in YYYY-MM-DD format"
     
-    # Validate number of hours
     try:
         hours = int(data['NumberOfHours'])
         if hours <= 0:
@@ -56,21 +50,17 @@ def validate_class_data(data, required_fields=None):
     
     return True, "Valid"
 
-# 1. Capturing student details
 @app.route('/students', methods=['POST'])
 def create_student():
     try:
         data = request.get_json()
         
-        # Validate input data
         is_valid, message = validate_student_data(data)
         if not is_valid:
             return jsonify({'error': message}), 400
         
-        # Generate unique student ID
         student_id = str(uuid.uuid4())
         
-        # Create student record
         student = {
             'StudentId': student_id,
             'FirstName': data['FirstName'],
@@ -91,7 +81,6 @@ def create_student():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# 2. Updating student details
 @app.route('/students/<student_id>', methods=['PUT'])
 def update_student(student_id):
     try:
@@ -100,14 +89,12 @@ def update_student(student_id):
         
         data = request.get_json()
         
-        # For updates, we only validate fields that are provided
         provided_fields = [field for field in ['FirstName', 'LastName', 'Age', 'City'] if field in data]
         if provided_fields:
             is_valid, message = validate_student_data(data, provided_fields)
             if not is_valid:
                 return jsonify({'error': message}), 400
         
-        # Update student record
         student = students[student_id]
         if 'FirstName' in data:
             student['FirstName'] = data['FirstName']
@@ -130,14 +117,12 @@ def update_student(student_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# 3. Delete student details
 @app.route('/students/<student_id>', methods=['DELETE'])
 def delete_student(student_id):
     try:
         if student_id not in students:
             return jsonify({'error': 'Student not found'}), 404
         
-        # Remove student from all class registrations
         registrations_to_remove = []
         for reg_id, registration in student_class_registrations.items():
             if registration['StudentId'] == student_id:
@@ -146,7 +131,6 @@ def delete_student(student_id):
         for reg_id in registrations_to_remove:
             del student_class_registrations[reg_id]
         
-        # Delete student
         deleted_student = students[student_id]
         del students[student_id]
         
@@ -158,7 +142,6 @@ def delete_student(student_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Get all students (helper endpoint for testing)
 @app.route('/students', methods=['GET'])
 def get_all_students():
     return jsonify({
@@ -166,7 +149,6 @@ def get_all_students():
         'total_count': len(students)
     }), 200
 
-# Get specific student (helper endpoint for testing)
 @app.route('/students/<student_id>', methods=['GET'])
 def get_student(student_id):
     if student_id not in students:
@@ -174,21 +156,17 @@ def get_student(student_id):
     
     return jsonify({'student': students[student_id]}), 200
 
-# 4. Creating class information
 @app.route('/classes', methods=['POST'])
 def create_class():
     try:
         data = request.get_json()
         
-        # Validate input data
         is_valid, message = validate_class_data(data)
         if not is_valid:
             return jsonify({'error': message}), 400
         
-        # Generate unique class ID
         class_id = str(uuid.uuid4())
         
-        # Create class record
         class_info = {
             'ClassId': class_id,
             'ClassName': data['ClassName'],
@@ -209,7 +187,6 @@ def create_class():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# 5. Updating class information
 @app.route('/classes/<class_id>', methods=['PUT'])
 def update_class(class_id):
     try:
@@ -218,14 +195,12 @@ def update_class(class_id):
         
         data = request.get_json()
         
-        # For updates, validate only provided fields
         provided_fields = [field for field in ['ClassName', 'Description', 'StartDate', 'EndDate', 'NumberOfHours'] if field in data]
         if provided_fields:
             is_valid, message = validate_class_data(data, provided_fields)
             if not is_valid:
                 return jsonify({'error': message}), 400
         
-        # Update class record
         class_info = classes[class_id]
         if 'ClassName' in data:
             class_info['ClassName'] = data['ClassName']
@@ -248,14 +223,12 @@ def update_class(class_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# 6. Deleting class information
 @app.route('/classes/<class_id>', methods=['DELETE'])
 def delete_class(class_id):
     try:
         if class_id not in classes:
             return jsonify({'error': 'Class not found'}), 404
         
-        # Remove all registrations for this class
         registrations_to_remove = []
         for reg_id, registration in student_class_registrations.items():
             if registration['ClassId'] == class_id:
@@ -264,7 +237,6 @@ def delete_class(class_id):
         for reg_id in registrations_to_remove:
             del student_class_registrations[reg_id]
         
-        # Delete class
         deleted_class = classes[class_id]
         del classes[class_id]
         
@@ -276,7 +248,6 @@ def delete_class(class_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Get all classes (helper endpoint for testing)
 @app.route('/classes', methods=['GET'])
 def get_all_classes():
     return jsonify({
@@ -284,7 +255,6 @@ def get_all_classes():
         'total_count': len(classes)
     }), 200
 
-# Get specific class (helper endpoint for testing)
 @app.route('/classes/<class_id>', methods=['GET'])
 def get_class(class_id):
     if class_id not in classes:
@@ -292,33 +262,27 @@ def get_class(class_id):
     
     return jsonify({'class': classes[class_id]}), 200
 
-# 7. Register student to class
 @app.route('/registrations', methods=['POST'])
 def register_student_to_class():
     try:
         data = request.get_json()
         
-        # Validate required fields
         if 'StudentId' not in data or 'ClassId' not in data:
             return jsonify({'error': 'StudentId and ClassId are required'}), 400
         
         student_id = data['StudentId']
         class_id = data['ClassId']
         
-        # Check if student exists
         if student_id not in students:
             return jsonify({'error': 'Student not found'}), 404
         
-        # Check if class exists
         if class_id not in classes:
             return jsonify({'error': 'Class not found'}), 404
         
-        # Check if student is already registered for this class
         for registration in student_class_registrations.values():
             if registration['StudentId'] == student_id and registration['ClassId'] == class_id:
                 return jsonify({'error': 'Student is already registered for this class'}), 400
         
-        # Create registration
         registration_id = str(uuid.uuid4())
         registration = {
             'RegistrationId': registration_id,
@@ -339,15 +303,12 @@ def register_student_to_class():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# 8. Get list of students registered for a class
 @app.route('/classes/<class_id>/students', methods=['GET'])
 def get_students_in_class(class_id):
     try:
-        # Check if class exists
         if class_id not in classes:
             return jsonify({'error': 'Class not found'}), 404
         
-        # Find all students registered for this class
         registered_students = []
         for registration in student_class_registrations.values():
             if registration['ClassId'] == class_id:
@@ -369,7 +330,6 @@ def get_students_in_class(class_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Get all registrations (helper endpoint for testing)
 @app.route('/registrations', methods=['GET'])
 def get_all_registrations():
     return jsonify({
@@ -377,7 +337,6 @@ def get_all_registrations():
         'total_count': len(student_class_registrations)
     }), 200
 
-# Health check endpoint
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({
